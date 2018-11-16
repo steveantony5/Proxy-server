@@ -393,6 +393,7 @@ status is_cache_data_avail()
 
 	
 	fp = fopen("cachedata.txt","r");
+	printf("fp %p\n",fp);
 	if(fp==NULL)
 	{
 		printf("Could not find cachedata.txt\n");
@@ -404,7 +405,7 @@ status is_cache_data_avail()
 		file_size = 0;
 		file_size=ftell(fp);
 		fseek(fp,0,SEEK_SET);
-
+		printf("file size %d\n",file_size);
 		char *cache = (char*)malloc(file_size);
 		if(cache == NULL)
 		{
@@ -458,7 +459,7 @@ status is_cache_data_avail()
 						position++;
 						i++;
 					}
-					fp = fopen("cachedata.txt","wb");
+					fp = fopen("cachedata.txt","w");
 					if(fp!=NULL)
 					{
 						fwrite(cache,1,file_size,fp);
@@ -877,7 +878,8 @@ void get_data_from_server()
 				sprintf(new_entry,"\n%s %d %d %d ",url,cur_hr,cur_min,cur_sec);
 				printf("---->Making new entry into cache \n%s\n",new_entry);
 				fread(new_cache,1,file_size,fp);
-
+				fclose(fp);
+				fp = NULL;
 				fp = fopen("cachedata.txt","w");
 				fwrite(new_cache,1,file_size,fp);
 
