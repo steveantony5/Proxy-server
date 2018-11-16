@@ -1,0 +1,4 @@
+
+detectportal.firefox.com 129.19.64.232 
+morse.colorado.edu 128.138.184.74 
+moodle.cs.colorado.edu 104.198.7.143 

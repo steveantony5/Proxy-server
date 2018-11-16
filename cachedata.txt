@@ -1,0 +1,30 @@
+
+http://morse.colorado.edu/inside/equipment/7000.jpg 21 22 31 http://morse.colorado.edu/inside/buttons/researchgroup_on.jpg 21 23 54 
+http://morse.colorado.edu/inside/buttons/researchgroup_off.jpg 21 23 54 
+http://morse.colorado.edu/about2.html 21 21 32 
+http://morse.colorado.edu/equipment.html 21 21 36 
+http://morse.colorado.edu/sponsors.html 21 23 54 
+http://morse.colorado.edu/multimedia.html 21 21 47 
+http://morse.colorado.edu/inside/multimedia/sidebar2_on.jpg 21 21 48 
+http://morse.colorado.edu/march.html 21 21 55 
+http://morse.colorado.edu/inside/schedule/sidebar2_on.jpg 21 21 55 
+http://morse.colorado.edu/distance.html 21 24 10 http://morse.colorado.edu/inside/distance/sidebar2_on.jpg 21 22 4 
+http://morse.colorado.edu/contact.html 21 24 24 
+http://morse.colorado.edu/inside/buttons/contact.jpg 21 22 12 
+http://morse.colorado.edu/inside/contact/sidebar2_on.jpg 21 22 13 
+http://morse.colorado.edu/routers.html 21 22 31 
+http://morse.colorado.edu/inside/equipment/sidebar2_off.jpg 21 22 31 
+http://morse.colorado.edu/inside/equipment/7200s004.jpg 21 22 31 
+http://morse.colorado.edu/inside/equipment/sidebar6_on.jpg 21 22 32 
+http://morse.colorado.edu/inside/equipment/sidebar5_on.jpg 21 22 32 
+http://morse.colorado.edu/switches.html 21 22 47 
+http://morse.colorado.edu/inside/equipment/sidebar4.jpg 21 22 48 
+http://morse.colorado.edu/inside/equipment/switchtitle.jpg 21 22 48 
+http://morse.colorado.edu/inside/equipment/5500.jpg 21 22 48 
+http://detectportal.firefox.com/success.txt 21 23 44 
+http://morse.colorado.edu/inside/sponsors/sidebar3_on.jpg 21 23 54 
+http://morse.colorado.edu/donators.html 21 23 58 
+http://morse.colorado.edu/inside/sponsors/sidebar2_off.jpg 21 23 58 
+http://morse.colorado.edu/inside/sponsors/sidebar4.jpg 21 23 58 
+http://morse.colorado.edu/inside/sponsors/donators/img2.gif 21 23 58 
+http://morse.colorado.edu/inside/sponsors/donators/img1.gif 21 23 58 
