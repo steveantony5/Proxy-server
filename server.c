@@ -34,7 +34,7 @@
 #define HEADER (500)
 
 /*Number of clients to listen*/
-#define LISTEN_MAX (10)
+#define LISTEN_MAX (20)
 
 /*For debug purpose*/
 #define DEBUG
@@ -48,6 +48,7 @@ typedef enum
 	ERROR = -1,
 	BLOCKED = -2,
 	IP_NOT_FOUND = -3,
+	IGNORE = -4,
 }status;
 
 /*creating the socket*/
@@ -83,26 +84,26 @@ int entry_present_in_cache = 0;
 /*****************************************************************
 *						Local function prototypes
 *****************************************************************/
-void socket_creation_proxy(int);
-void parse_request(void);
-void Get_request(void);
+status socket_creation_proxy(int);
+status parse_request(void);
 void error_request(char []);
 status get_ip_and_blockstatus();
 status is_cache_data_avail();
 int difference_time(int, int, int, int,int, int);
 void init();
-void get_data_from_server();
-void get_data_from_cache();
+status get_data_from_server();
+status get_data_from_cache();
 void get_curr_time(int *,int *, int *);
 status make_DNS_request(void);
 void get_filename(void);
-void socket_creation_remote();
+status socket_creation_remote();
 /***************************************************************
 *                      Main Function
 **************************************************************/
 
 int main(int argc, char *argv[])
 {
+	//for knowing the status of each called function : error handling
 	status status_returned;
 
 	if(argc<3)// passing port number as command line argument
@@ -118,8 +119,12 @@ int main(int argc, char *argv[])
 	cache_timeout = atoi(argv[2]);
 
 	//Creating socket for proxy server
-    socket_creation_proxy(port_proxy);
-	
+    status_returned = socket_creation_proxy(port_proxy);
+	if(status_returned == ERROR)
+	{
+		printf("Error on socket creation for proxy\n");
+	    exit(EXIT_FAILURE);
+	}
 	
 	while(1)
 	{
@@ -130,7 +135,8 @@ int main(int argc, char *argv[])
 		new_socket = accept(proxy_server_socket,(struct sockaddr*) &to_address, &clilen);
 		if(new_socket<0)
 		{
-			perror("error on accepting client");
+			perror("Error on accepting client");
+
 		}
 		
 		/*Clearing the request variable*/
@@ -159,7 +165,13 @@ int main(int argc, char *argv[])
 			//Function for initilizing the variables used in the loop
 			init();
 
-			parse_request();
+			status_returned = parse_request();
+			{
+				if(status_returned == IGNORE)
+				{
+					goto end;
+				}
+			}
 			
 			if(((strcmp(method,"GET")==0))&&((strcmp(version,"HTTP/1.1")==0)||(strcmp(version,"HTTP/1.0")==0)) && (strncmp(url,"http://",7) == 0))
 			{
@@ -168,7 +180,7 @@ int main(int argc, char *argv[])
 				if (status_returned == ERROR)
 				{
 					printf("Error occured in function is_cache_data_avail()");
-					exit(1);
+	    			exit(EXIT_FAILURE);
 				}
 			
 				status_returned = get_ip_and_blockstatus();
@@ -180,6 +192,11 @@ int main(int argc, char *argv[])
 				{
 					error_request("Error: 404 Host name not resolved");
 				}
+				else if (status_returned == ERROR)
+				{
+					printf("Error occured in function get_ip_and_blockstatus()");
+	    			exit(EXIT_FAILURE);
+				}
 				else
 				{
 					printf("\n---->Page not blocked\n");
@@ -187,11 +204,21 @@ int main(int argc, char *argv[])
 					//gets the requested page from Cache folder
 					if(use_cache == 1)
 					{
-						get_data_from_cache();
+						status_returned = get_data_from_cache();
+						if(status_returned == ERROR)
+						{
+							printf("Error occured in function get_data_from_cache()");
+	    					exit(EXIT_FAILURE);
+						}
 					}
 					else
 					{
-						get_data_from_server();
+						status_returned = get_data_from_server();
+						if(status_returned == ERROR)
+						{
+							printf("Error occured in function get_data_from_server()");
+	    					exit(EXIT_FAILURE);
+						}
 					}
 				}
 			}
@@ -230,14 +257,14 @@ int main(int argc, char *argv[])
 //
 //****************************************************************************/
 
-void socket_creation_proxy(int port)
+status socket_creation_proxy(int port)
 {
 
 	proxy_server_socket = socket(AF_INET,SOCK_STREAM,0);// setting the server socket
 	if(proxy_server_socket < 0)
 	{
 		perror("error on proxy server socket creation");
-		exit(EXIT_FAILURE);
+		return ERROR;
 	}
 	memset(&proxy_server_address,0,sizeof(proxy_server_address));
 
@@ -246,7 +273,7 @@ void socket_creation_proxy(int port)
 	if(setsockopt(proxy_server_socket,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int)) < 0)
 	{
 		perror("error on setsocket of proxy server");
-		exit(EXIT_FAILURE);
+		return ERROR;
 	}
 
 	proxy_server_address.sin_family = AF_INET;
@@ -257,17 +284,20 @@ void socket_creation_proxy(int port)
 	if(bind(proxy_server_socket,(struct sockaddr*)&proxy_server_address,sizeof(proxy_server_address))<0)
 	{
 		perror("Binding failed in the proxy server");
-		exit(EXIT_FAILURE);
+		return ERROR;
 	}
 
 	/*Listening for clients*/
 	if(listen(proxy_server_socket,LISTEN_MAX) < 0)
 	{
 		perror("Error on Listening");
-		exit(EXIT_FAILURE);
+		return ERROR;
 	}
 	else
+	{
 		printf("\nlistening.....\n");
+	}
+	return SUCCESS;
 
 
 }
@@ -302,7 +332,7 @@ void init()
 // return      : Not used
 //
 //****************************************************************************/
-void parse_request()
+status parse_request()
 {
 	memset(method,0,sizeof(method));
 	memset(url,0,sizeof(url));
@@ -311,7 +341,7 @@ void parse_request()
 
 	printf("\nReceived Request to Proxy Server :\n%s",request);
 	
-				
+
 	/*separating the parameters from request string*/
 	sscanf(request,"%s%s%s",method, url, version);
 
@@ -363,7 +393,7 @@ void parse_request()
 		printf("Domain name                  - %s\n",main_url);
 		printf("Port number for remote server- %d\n\n",port_number);
 
-  	
+  	return SUCCESS;
 }
 
 
@@ -380,8 +410,8 @@ void parse_request()
 
 status is_cache_data_avail()
 {
-	FILE *fp;
-	fp = NULL;
+	FILE *cache_fp;
+	cache_fp = NULL;
 	char *position;
 
 	
@@ -392,33 +422,35 @@ status is_cache_data_avail()
 	get_curr_time(&cur_hr,&cur_min,&cur_sec);
 
 	
-	fp = fopen("cachedata.txt","r");
-	printf("fp %p\n",fp);
-	if(fp==NULL)
+	cache_fp = fopen("cachedata.txt","r");
+	if(cache_fp==NULL)
 	{
 		printf("Could not find cachedata.txt\n");
 		return ERROR;
 	}
 	else
 	{
-		fseek(fp,0,SEEK_END);
 		file_size = 0;
-		file_size=ftell(fp);
-		fseek(fp,0,SEEK_SET);
-		printf("file size %d\n",file_size);
-		char *cache = (char*)malloc(file_size);
+		struct stat st_cache;
+
+		stat("cachedata.txt", &st_cache);
+		file_size = st_cache.st_size;
+		
+		char *cache = (char*)calloc(1, file_size);
 		if(cache == NULL)
 		{
 			printf("No enough size for cache in memory\n");
 			return ERROR;
 		}
 
-		fread(cache,1,file_size,fp);
+		fread(cache,1,file_size,cache_fp);
 		position = NULL;
-		fclose(fp);
-		fp = NULL;
-		char check_url[30];
-		char temp_url[30];
+		fclose(cache_fp);
+		cache_fp = NULL;
+		char check_url[200];
+		char temp_url[200];
+		memset(check_url,0,sizeof(check_url));
+		memset(temp_url,0,sizeof(temp_url));
 
 		//Padding a space after URL to get the exact match
 		sprintf(temp_url,"%s ",url);
@@ -459,12 +491,14 @@ status is_cache_data_avail()
 						position++;
 						i++;
 					}
-					fp = fopen("cachedata.txt","w");
-					if(fp!=NULL)
+					FILE *cache_fp2;
+					cache_fp2 = fopen("cachedata.txt","w");
+					if(cache_fp2!=NULL)
 					{
-						fwrite(cache,1,file_size,fp);
+						fwrite(cache,1,file_size,cache_fp2);
 						entry_present_in_cache = 1;
-						fclose(fp);
+						fclose(cache_fp2);
+						cache_fp2 = NULL;
 
 					}
 					else
@@ -472,6 +506,7 @@ status is_cache_data_avail()
 						#ifdef DEBUG
 						printf("\nCould not open cachedata.txt in write mode\n");
 						#endif
+						return ERROR;
 					}
 				}
 			}
@@ -491,7 +526,6 @@ status is_cache_data_avail()
 		free(cache);
 		cache = NULL;
 		position = NULL;
-		fp = NULL;
 		return SUCCESS;
 	}
 }
@@ -527,33 +561,38 @@ int difference_time(int cur_hr, int cur_min,int cur_sec,int hr, int min,int sec)
 
 status get_ip_and_blockstatus()
 {
-	FILE *fp;
+	FILE *block_fp;
+	FILE *block_fp2;
 	char *position;
 
-	fp = fopen("Blocked.txt","rb");
-	if(fp ==NULL)
+	block_fp = fopen("Blocked.txt","rb");
+	if(block_fp ==NULL)
 	{
 		printf("\nBlocked.txt not present\n");
 		return ERROR;
 	}
-	fseek(fp,0,SEEK_END);
 	file_size = 0;
-	file_size=ftell(fp);
-	fseek(fp,0,SEEK_SET);
+	struct stat st_block;
+
+	stat("Blocked.txt", &st_block);
+	file_size = st_block.st_size;
 
 
-	char *blocked_data = (char*)malloc(file_size);
+	char *blocked_data = (char*)calloc(1, file_size);
 	if(blocked_data == NULL)
+	{
+		perror("Malloc failed for storing block data");
 		return ERROR;
+	}
 
-	fread(blocked_data,1,file_size,fp);
+	fread(blocked_data,1,file_size,block_fp);
 
 	//Checks if the requested domain name is present in blocked list
 	position = strstr(blocked_data,main_url);
 	if(position!= NULL)
 	{
-			char check[20];
-			memset(check,0,20);
+			char check[500];
+			memset(check,0,500);
 			sscanf(position,"%s",check);
 			if(strcmp(check,main_url)==0)
 			{
@@ -566,8 +605,8 @@ status get_ip_and_blockstatus()
 
 	free(blocked_data);
 	blocked_data = NULL;
-	fclose(fp);
-	fp = NULL;
+	fclose(block_fp);
+	block_fp = NULL;
 
 	/*Checks if the request has domain name or IP*/
 	int j=0,count = 0;
@@ -588,29 +627,35 @@ status get_ip_and_blockstatus()
 
 	/*--------------------Looking for IP in the IP Cache.txt-------------------*/
 	memset(ip,0,sizeof(ip));
-	fp = fopen("IP_Cache.txt","rb");
-	if(fp ==NULL)
+	FILE *IP_Cache_fp;
+	IP_Cache_fp = fopen("IP_Cache.txt","r");
+	if(IP_Cache_fp ==NULL)
 	{
 		printf("\nIP_Cache.txt not present\n");
 		return ERROR;
 	}
 
-	fseek(fp,0,SEEK_END);
 	file_size = 0;
-	file_size=ftell(fp);
-	fseek(fp,0,SEEK_SET);
+
+	struct stat st_IP;
+
+	stat("IP_Cache.txt", &st_IP);
+	file_size = st_IP.st_size;
 
 
-	char *Cached_data = (char*)malloc(file_size);
+	char *Cached_data = (char*)calloc(1, file_size);
 	if(Cached_data == NULL)
+	{
+		perror("Malloc failed for storing cache data");
 		return ERROR;
+	}
 
-	fread(Cached_data,1,file_size,fp);	
+	fread(Cached_data,1,file_size,IP_Cache_fp);	
 	position = strstr(Cached_data,main_url);
 	int found = 0;
 	if(position!=NULL)
 	{
-			char check_name[20];
+			char check_name[500];
 			sscanf(position,"%s",check_name);
 			if(strcmp(check_name,main_url)==0)
 			{
@@ -637,36 +682,41 @@ status get_ip_and_blockstatus()
 
 	free(Cached_data);
 	Cached_data = NULL;
-	fclose(fp);
-	fp = NULL;
+	fclose(IP_Cache_fp);
+	IP_Cache_fp = NULL;
 
 
 end:
 
-
+	
 	/*Check if the IP is in the blocked list*/
-	fp = fopen("Blocked.txt","rb");
-	if(fp ==NULL)
+	
+	block_fp2 = fopen("Blocked.txt","rb");
+	if(block_fp2 ==NULL)
 	{
 		printf("\nBlocked file not present\n");
 		return ERROR;
 	}
-	fseek(fp,0,SEEK_END);
 	file_size = 0;
-	file_size=ftell(fp);
-	fseek(fp,0,SEEK_SET);
+	struct stat st_B;
+
+	stat("Blocked.txt", &st_B);
+	file_size = st_B.st_size;
 
 
-	blocked_data = (char*)malloc(file_size);
+	blocked_data = (char*)calloc(1, file_size);
 	if(blocked_data == NULL)
+	{
+		perror("Malloc failed for storing blocked data");
 		return ERROR;
+	}
 
-	fread(blocked_data,1,file_size,fp);
+	fread(blocked_data,1,file_size,block_fp2);
 	position = strstr(blocked_data,ip);
 	if(position!= NULL)
 	{
-			char check[20];
-			memset(check,0,20);
+			char check[500];
+			memset(check,0,500);
 			sscanf(position,"%s",check);
 			if(strcmp(check,ip)==0)
 			{
@@ -680,8 +730,8 @@ end:
 	free(blocked_data);
 	blocked_data = NULL;
 
-	fclose(fp);
-	fp = NULL;
+	fclose(block_fp2);
+	block_fp2 = NULL;
 	printf("---->IP : %s\n",ip);
 
 	return SUCCESS;
@@ -724,7 +774,7 @@ status  make_DNS_request()
 	}
 	else
 	{
-		char new_entry[30];
+		char new_entry[500];
 		fseek(dns,0,SEEK_END);
 		sprintf(new_entry,"\n%s %s ",main_url,ip);
 		fwrite(new_entry,1,strlen(new_entry),dns);
@@ -745,7 +795,7 @@ status  make_DNS_request()
 //
 //****************************************************************************/
 
-void get_data_from_cache()
+status get_data_from_cache()
 {
 
 	//Filename to retrive from Cache folder
@@ -755,33 +805,41 @@ void get_data_from_cache()
 	printf("Filename %s\n",filename);
 	#endif
 
-	FILE *fp;
-	fp = fopen(filename,"r");
-	if(fp==NULL)
+	FILE *fp_file_cache;
+	fp_file_cache = fopen(filename,"r");
+	if(fp_file_cache==NULL)
 	{
 		printf("\n---->Could not find cache file\n");
+		return ERROR;
 	}
 	else
 	{
-		fseek(fp,0,SEEK_END);
+		fseek(fp_file_cache,0,SEEK_END);
 		file_size = 0;
-		file_size=ftell(fp);
-		fseek(fp,0,SEEK_SET);
-		char *data = (char*)malloc(file_size);
+		file_size=ftell(fp_file_cache);
+		fseek(fp_file_cache,0,SEEK_SET);
+		char *data = (char*)calloc(1, file_size);
 		if(data!=NULL)
 		{
-			fread(data,1,file_size,fp);
+			fread(data,1,file_size,fp_file_cache);
 			printf("---->Retrived data from Cache\n");
 
-			printf("\n---->File :\n\n%s\n",data);
+			//printf("\n---->File :\n\n%s\n",data);
 			printf("End of FILE\n");
 
 			send(new_socket,data,file_size,0);
 
 			free(data);
-			fclose(fp);
+			fclose(fp_file_cache);
+			fp_file_cache = NULL;
+		}
+		else
+		{
+			perror("malloc failed for storing file from cache");
+			return ERROR;
 		}
 	}
+	return SUCCESS;
 
 }
 
@@ -800,7 +858,7 @@ void get_filename()
 	int len = strlen(url);
 	int j,i = 0;
 
-	char temp[300];
+	char temp[500];
 	for( i=0, j = 7; j<=len;i++,j++)
 	{
 		temp[i] = url[j];
@@ -847,28 +905,29 @@ void get_filename()
 //
 //****************************************************************************/
 
-void get_data_from_server()
+status get_data_from_server()
 {
 	printf("\n---->Getting data from remote server\n");
 
 	if(entry_present_in_cache == 0)
 	{
-		FILE *fp;
+		FILE *fp_file_server;
 		int cur_min, cur_sec, cur_hr;
-		char new_entry[200];
-		fp = fopen("cachedata.txt","r");
-		if(fp!=NULL)
+		char new_entry[500];
+		fp_file_server = fopen("cachedata.txt","r");
+		if(fp_file_server!=NULL)
 		{
 
-			fseek(fp,0,SEEK_END);
 			file_size = 0;
-			file_size=ftell(fp);
-			fseek(fp,0,SEEK_SET);
+			struct stat st;
+			stat("cachedata.txt", &st);
+			file_size = st.st_size;
 
-			char *new_cache = (char*)malloc(file_size);
+			char *new_cache = (char*)calloc(1, file_size);
 			if(new_cache == NULL)
 			{
-				printf("No enough size for new_cache in memory\n");
+				perror("No enough size for new_cache in memory\n");
+				return ERROR;
 			}
 			else
 			{
@@ -877,29 +936,46 @@ void get_data_from_server()
 
 				sprintf(new_entry,"\n%s %d %d %d ",url,cur_hr,cur_min,cur_sec);
 				printf("---->Making new entry into cache \n%s\n",new_entry);
-				fread(new_cache,1,file_size,fp);
-				fclose(fp);
-				fp = NULL;
-				fp = fopen("cachedata.txt","w");
-				fwrite(new_cache,1,file_size,fp);
+				fread(new_cache,1,file_size,fp_file_server);
+				fclose(fp_file_server);
+				fp_file_server = NULL;
 
-				for(int i = 0; i < strlen(new_entry);i++)
+				FILE *fp_cache_data;
+				fp_cache_data = fopen("cachedata.txt","w");
+				if(fp_cache_data == NULL)
 				{
-       				fprintf (fp,"%c" ,new_entry[i]);
+					perror("Could not find cachedata.txt\n");
+					return ERROR;
 				}
-				fclose(fp);
-				fp = NULL;
+				else
+				{
+					fwrite(new_cache,1,file_size,fp_cache_data);
 
+					for(int i = 0; i < strlen(new_entry);i++)
+					{
+       					fprintf (fp_cache_data,"%c" ,new_entry[i]);
+					}
+					fclose(fp_cache_data);
+					fp_cache_data = NULL;
+				}
 			}
 		}
 		else
 		{
-		printf("Could not locate cachedata.txt file\n");
+			perror("Could not locate cachedata.txt file\n");
+			return ERROR;
 		}
 	}
+	status status_socket;
 
-	socket_creation_remote();
+	status_socket = socket_creation_remote();
+	if(status_socket == ERROR)
+	{
+		perror("Error on communication between proxy and server");
+		return ERROR;
+	}
 
+	return SUCCESS;
 }
 //*****************************************************************************
 // Name        : socket_creation_remote
@@ -912,15 +988,15 @@ void get_data_from_server()
 //
 //****************************************************************************/
 
-void socket_creation_remote()
+status socket_creation_remote()
 {
-	char folder_path[200], folder_name[200], filename[200] ;
+	char folder_path[500], folder_name[500], filename[500] ;
 	remote_socket = socket(AF_INET,SOCK_STREAM,0);// setting the server socket
 	if(remote_socket < 0)
 	{
 
-		perror("error on socket creation");
-		exit(EXIT_FAILURE);
+		perror("error on socket creation with http server");
+		return ERROR;
 	}
 	memset(&remote_address,0,sizeof(remote_address));
 
@@ -928,8 +1004,8 @@ void socket_creation_remote()
 	int true = 1;
 	if(setsockopt(remote_socket,SOL_SOCKET,SO_REUSEADDR,&true,sizeof(int)) < 0)
 	{
-		perror("error on setsocket");
-		exit(EXIT_FAILURE);
+		perror("error on setsocket with http server");
+		return ERROR;
 	}
 
 	printf("\nPort %d is used for remote connection\n",port_number);
@@ -944,7 +1020,10 @@ void socket_creation_remote()
     int status_val = connect(remote_socket,(struct sockaddr*)&remote_address,sizeof(struct sockaddr));
 
     if(status_val < 0)
-    	printf("Error in establishing connection\n");
+    {
+    	perror("Error in establishing connection\n");
+    	return ERROR;
+    }
 
  	else
  	{
@@ -1026,7 +1105,10 @@ void socket_creation_remote()
  		printf("\n---->Request : \n%s\n",request_remote);
 
  		if((send(remote_socket,request_remote,strlen(request_remote),0))<0)
- 			printf("Error on sending to remote server\n");
+ 		{
+ 			perror("Error on sending to remote server\n");
+ 			return ERROR;
+ 		}
 
 
  		else
@@ -1044,7 +1126,7 @@ void socket_creation_remote()
 			}
 			else
 			{
-				char cmd[100];
+				char cmd[500];
 				sprintf(cmd,"mkdir -p %s",folder_name);
 
 				system(cmd);
@@ -1064,7 +1146,7 @@ void socket_creation_remote()
  					characters = recv(remote_socket,response_remote,HEADER,0);
  					fwrite(response_remote, 1, characters,recv_data);
  					send(new_socket,response_remote,characters,0);
- 					printf("%s",response_remote);
+ 					//printf("%s",response_remote);
 
  				}while(characters>0);
  				printf("\nEnd of File\n");
@@ -1072,14 +1154,14 @@ void socket_creation_remote()
  			}
  			else
  			{
- 				#ifdef DEBUG
- 				printf("\nCannot create a file in Cache\n");
- 				#endif
+ 				perror("\nCannot create a file in Cache\n");
+ 				return ERROR;
  			}
 
  			
  		}
  	}
+ 	return SUCCESS;
 }
 
 

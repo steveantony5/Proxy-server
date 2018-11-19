@@ -1,8 +1,7 @@
-http://morse.colo
 
-http://morse.colorado.edu/ 22 47 37 
-http://morse.colorado.edu/images/pixel.gif 22 47 37 
-http://morse.colorado.edu/inside/buttons/researchgroup_on.jpg 22 25 31 
-http://morse.colorado.edu/inside/buttons/researchgroup_off.jpg 22 47 37 
-http://morse.colorado.edu/about2.html 22 25 37 
-http://morse.colorado.edu/sponsors.html 22 25 41 
+http://assets.webservices.websitepros.com/builder/layouts/assets/frames/generic/images/frame7_br.png 11 42 26 
+http://showcase27.myregisteredsite.com/image/43777821.png 11 42 26 
+http://showcase27.myregisteredsite.com/image/43777825.png 11 42 26 
+http://showcase27.myregisteredsite.com/ 11 42 26 
+http://showcase27.myregisteredsite.com/image/43777827.png 11 42 26 
+http://showcase27.myregisteredsite.com/image/43777820.png 11 42 26 
