@@ -1,7 +1,0 @@
-
-http://assets.webservices.websitepros.com/builder/layouts/assets/frames/generic/images/frame7_br.png 11 42 26 
-http://showcase27.myregisteredsite.com/image/43777821.png 11 42 26 
-http://showcase27.myregisteredsite.com/image/43777825.png 11 42 26 
-http://showcase27.myregisteredsite.com/ 11 42 26 
-http://showcase27.myregisteredsite.com/image/43777827.png 11 42 26 
-http://showcase27.myregisteredsite.com/image/43777820.png 11 42 26 

@@ -478,9 +478,9 @@ status is_cache_data_avail()
 				else
 				{
 					printf("---->The difference of time stamp of Cache file is %d secs\n",diff);
-					printf("\n----> The entry in Cache is obsolete\n\n----> Updating entry in cache index\n");
+					printf("\n----> The 	entry in Cache is obsolete\n\n----> Updating entry in cache index\n");
 
-					char new_cache_data[100];
+					char new_cache_data[400];
 					memset(new_cache_data,0,sizeof(new_cache_data));
 					sprintf(new_cache_data,"%s %2d %2d %2d ",url,cur_hr, cur_min,cur_sec);
 
@@ -493,6 +493,7 @@ status is_cache_data_avail()
 					}
 					FILE *cache_fp2;
 					cache_fp2 = fopen("cachedata.txt","w");
+					printf("Cache stored %s\n",cache);
 					if(cache_fp2!=NULL)
 					{
 						fwrite(cache,1,file_size,cache_fp2);
@@ -914,7 +915,7 @@ status get_data_from_server()
 		FILE *fp_file_server;
 		int cur_min, cur_sec, cur_hr;
 		char new_entry[500];
-		fp_file_server = fopen("cachedata.txt","r");
+		fp_file_server = fopen("cachedata.txt","a+");
 		if(fp_file_server!=NULL)
 		{
 
@@ -936,28 +937,10 @@ status get_data_from_server()
 
 				sprintf(new_entry,"\n%s %d %d %d ",url,cur_hr,cur_min,cur_sec);
 				printf("---->Making new entry into cache \n%s\n",new_entry);
-				fread(new_cache,1,file_size,fp_file_server);
+				fprintf (fp_file_server,"%s" ,new_entry);
 				fclose(fp_file_server);
 				fp_file_server = NULL;
-
-				FILE *fp_cache_data;
-				fp_cache_data = fopen("cachedata.txt","w");
-				if(fp_cache_data == NULL)
-				{
-					perror("Could not find cachedata.txt\n");
-					return ERROR;
-				}
-				else
-				{
-					fwrite(new_cache,1,file_size,fp_cache_data);
-
-					for(int i = 0; i < strlen(new_entry);i++)
-					{
-       					fprintf (fp_cache_data,"%c" ,new_entry[i]);
-					}
-					fclose(fp_cache_data);
-					fp_cache_data = NULL;
-				}
+				
 			}
 		}
 		else
