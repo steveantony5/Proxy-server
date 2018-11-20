@@ -32,7 +32,9 @@
 *                                   Macros
 **************************************************************************************/
 /*Header length*/
-#define HEADER (500)
+#define HEADER (1500)
+
+#define BUFFER (2048)
 
 /*Number of clients to listen*/
 #define LISTEN_MAX (20)
@@ -49,7 +51,7 @@ typedef enum
 	ERROR = -1,
 	BLOCKED = -2,
 	IP_NOT_FOUND = -3,
-	IGNORE = -4,
+	SKIP_TO_END = -4,
 }status;
 
 /*creating the socket*/
@@ -61,7 +63,6 @@ char method[100];
 char version[100];        
 char url[800];
 char content_length[10];
-char content_type[10];
 int port_number;
 char ip[50];
 char main_url[500];
@@ -106,11 +107,13 @@ int main(int argc, char *argv[])
 {
 	//for knowing the status of each called function : error handling
 	status status_returned;
+
+	//for forking
 	int32_t child_id = 0;
 
 	if(argc<3)// passing port number as command line argument
 	{
-	    perror("Please provide port number");
+	    perror("Please provide port number, cache timeout");
 	    exit(EXIT_FAILURE);
     }
         
@@ -144,16 +147,21 @@ int main(int argc, char *argv[])
 		
 		/*Clearing the request variable*/
 		memset(request,0,HEADER);
+
+
 		child_id = 0;
 		/*Creating child processes*/
 		/*Returns zero to child process if there is successful child creation*/
 		child_id = fork();
+
+		// error on child process
 		if(child_id < 0)
 		{
 			perror("error on creating child\n");
 			exit(1);
 		}
 
+		//closing the parent
 		if (child_id > 0)
 		{
 			close(new_socket);
@@ -163,6 +171,7 @@ int main(int argc, char *argv[])
 		while((child_id == 0) && ( recv(new_socket,request, HEADER,0) > 0))
 		{
 
+	
 			// blocking /favicon.ico request
 			if(strstr(request, "favicon"))
 			{
@@ -175,6 +184,7 @@ int main(int argc, char *argv[])
 			//Function for initilizing the variables used in the loop
 			init();
 
+			// parsing the request
 			status_returned = parse_request();
 			{
 				if(status_returned == ERROR)
@@ -186,6 +196,7 @@ int main(int argc, char *argv[])
 			if(((strcmp(method,"GET")==0))&&((strcmp(version,"HTTP/1.1")==0)||(strcmp(version,"HTTP/1.0")==0)) && (strncmp(url,"http://",7) == 0))
 			{
 
+				// checks if the request is available in cache
 				status_returned = is_cache_data_avail();
 				if (status_returned == ERROR)
 				{
@@ -193,6 +204,7 @@ int main(int argc, char *argv[])
 	    			exit(EXIT_FAILURE);
 				}
 			
+			    // get the ip address and block status
 				status_returned = get_ip_and_blockstatus();
 				if(status_returned == BLOCKED)
 				{
@@ -207,6 +219,8 @@ int main(int argc, char *argv[])
 					printf("Error occured in function get_ip_and_blockstatus()");
 	    			exit(EXIT_FAILURE);
 				}
+
+				// enters if the page is not blocked and ip is found
 				else
 				{
 					printf("\n---->Page not blocked\n");
@@ -214,6 +228,7 @@ int main(int argc, char *argv[])
 					//gets the requested page from Cache folder
 					if(use_cache == 1)
 					{
+						// fetching data from cache
 						status_returned = get_data_from_cache();
 						if(status_returned == ERROR)
 						{
@@ -223,11 +238,17 @@ int main(int argc, char *argv[])
 					}
 					else
 					{
+						// fetching data from server
 						status_returned = get_data_from_server();
 						if(status_returned == ERROR)
 						{
 							printf("Error occured in function get_data_from_server()");
 	    					exit(EXIT_FAILURE);
+						}
+						if(status_returned == SKIP_TO_END)
+						{
+							printf("\nIssue with connecting to remote server\n");
+							goto end;
 						}
 					}
 				}
@@ -362,10 +383,11 @@ status parse_request()
 	char *first_occ ,*last_occ;
 
 
-
+	// Checking if port number is provided in the request
 	first_occ = strchr(url,':');
 	last_occ  = strrchr(url,':');
 
+	// if port number is not provided: default is 80
 	if(first_occ == last_occ) // Port number is not provided in the request
 	{
 		port_number = 80; //default port number
@@ -480,6 +502,7 @@ status is_cache_data_avail()
 		//Padding a space after URL to get the exact match
 		sprintf(temp_url,"%s ",url);
 
+		// searching url in cache
 		position = strstr(cache,temp_url);
 
 		if(position!= NULL)
@@ -493,6 +516,7 @@ status is_cache_data_avail()
 				int diff = 0;
 				diff = difference_time(cur_hr,cur_min,cur_sec,hr, min,sec);
 
+				// checks if the cache data is within timeout
 				if(diff < cache_timeout)
 				{
 					use_cache = 1;
@@ -500,6 +524,8 @@ status is_cache_data_avail()
 					printf("---->The difference of time stamp of Cache file is %d secs\n",diff);
 					printf("---->Hence, Cache file is used\n");
 				}
+
+				//if cache is obsolete
 				else
 				{
 					printf("---->The difference of time stamp of Cache file is %d secs\n",diff);
@@ -509,6 +535,7 @@ status is_cache_data_avail()
 					memset(new_cache_data,0,sizeof(new_cache_data));
 					sprintf(new_cache_data,"%s %2d %2d %2d ",url,cur_hr, cur_min,cur_sec);
 
+					// updating caceh entry for outdated entries
 					int i = 0;
 					while(new_cache_data[i]!='\0')
 					{
@@ -637,9 +664,12 @@ status get_ip_and_blockstatus()
 	int j=0,count = 1;
 	for(j=0; j < strlen(main_url); j++)
 	{
-		if(main_url[j] == '.')
-			count++;
-
+		if((main_url[0]  >= 48) && (main_url[0] <=57))
+		{
+			if(main_url[j] == '.')
+				count++;
+		}
+		
 		if(count == 4)
 		{
 			#ifdef DEBUG
@@ -906,18 +936,18 @@ void get_filename()
 			int len = strlen(filename);
 			if(filename[len-1] == '/')
 			{
-				strcat(filename,"default.html");
+				strcat(filename,"index.html");
 			}
 			else
 			{
-				strcat(filename,"/default.html");
+				strcat(filename,"/index.html");
 			}
 
 		}
 	}
 	else
 	{
-		strcat(filename,"/default.html");	
+		strcat(filename,"/index.html");	
 	}
 
 }
@@ -1026,12 +1056,13 @@ status socket_creation_remote()
 	remote_address.sin_port = htons(port_number);
 
 
+	// connecting to the remote server
     int status_val = connect(remote_socket,(struct sockaddr*)&remote_address,sizeof(struct sockaddr));
 
     if(status_val < 0)
     {
     	perror("Error in establishing connection\n");
-    	return ERROR;
+    	return SKIP_TO_END;
     }
 
  	else
@@ -1059,6 +1090,7 @@ status socket_creation_remote()
  					*temp ='\0';
 
  					/* http://morse.colorado.edu/images/eg.gif*/
+
  					sprintf(filename,"Cache/%s%s",main_url,find_path);
  					sprintf(folder_name,"Cache/%s%s",main_url,folder_path);
  				}
@@ -1071,12 +1103,14 @@ status socket_creation_remote()
  					{
  						/* http://morse.colorado.edu/images/
  						   http://morse.colorado.edu/         */
- 						sprintf(filename,"Cache/%s%sdefault.html",main_url,find_path);
+
+ 						sprintf(filename,"Cache/%s%sindex.html",main_url,find_path);
  					}
  					else
  					{
  						/* http://morse.colorado.edu/images*/
- 						sprintf(filename,"Cache/%s%s/default.html",main_url,find_path);
+
+ 						sprintf(filename,"Cache/%s%s/index.html",main_url,find_path);
  					}
  				}
  				
@@ -1086,8 +1120,8 @@ status socket_creation_remote()
  			else
  			{
  				
- 				/* http://morse.colorado.edu*/
- 				sprintf(filename,"Cache/%s/default.html",main_url);
+ 				/* http://morse.colorado.edu                 */
+ 				sprintf(filename,"Cache/%s/index.html",main_url);
  				sprintf(folder_name,"Cache/%s",main_url);
  			}
  		}
@@ -1102,93 +1136,109 @@ status socket_creation_remote()
  		#endif
 
  		memset(request_remote,0,sizeof(request_remote));
- 		
- 		if(find_path == NULL)
+
+ 		// sending GET request to the server
+
+ 		char *browser = strstr(request,"Accept");
+ 		if(browser == NULL)
  		{
- 			 sprintf(request_remote,"GET / %s\r\nHost: %s\r\nConnection : close\r\n\r\n",version,main_url);
- 		}
- 		else
- 		{
-
- 			sprintf(request_remote,"GET %s %s\r\nHost: %s\r\nConnection : close\r\n\r\n",find_path,version,main_url);
- 		}
-
-
- 		printf("\n---->Request : \n%s\n",request_remote);
-
- 		if((send(remote_socket,request_remote,strlen(request_remote),0))<0)
- 		{
- 			perror("Error on sending to remote server\n");
- 			return ERROR;
- 		}
-
-
- 		else
- 		{
- 			printf("\nReceiving file...\n");
- 			FILE *recv_data;
- 			int characters;
-	
-			DIR *dir = opendir(folder_name);
-			if(dir)
-			{
-				#ifdef DEBUG
-				printf("Path already exists\n");
-				#endif
-			}
-			else
-			{
-				char cmd[500];
-				sprintf(cmd,"mkdir -p %s",folder_name);
-
-				system(cmd);
-				#ifdef DEBUG
-				printf("Created Folder: %s\n",folder_name);
-				#endif
-			}
-
- 			recv_data = fopen(filename,"w");
- 			if(recv_data!=NULL)
+ 			if(find_path == NULL)
  			{
- 				printf("\n---->Received File :\n");
- 				do
- 				{
- 					characters = 0;
- 					memset(response_remote,0,sizeof(response_remote));
-					//setting socket timeout if more than 1 second
-
-					/*struct timeval tv;// for socket timeout
-					tv.tv_sec = 10;
-					tv.tv_usec = 0;
-					setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
-					characters = recv(remote_socket,response_remote,HEADER,0);
-
-					/*tv.tv_sec = 0;
-					tv.tv_usec = 0;
-					setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
-
- 					if(characters < 0)
- 					{
- 						printf("Error on loading from server - Timeout\n");
- 						break;
- 					}
- 					fwrite(response_remote, 1, characters,recv_data);
- 					send(new_socket,response_remote,characters,0);
- 					//printf("%s",response_remote);
-
- 				}while(characters>0);
- 				printf("\nEnd of File\n");
- 				fclose(recv_data);
+ 				 sprintf(request_remote,"GET / %s\r\nHost: %s\r\nConnection : close\r\n\r\n",version,main_url);
  			}
  			else
  			{
- 				perror("\nCannot create a file in Cache\n");
- 				return ERROR;
+
+ 				sprintf(request_remote,"GET %s %s\r\nHost: %s\r\nConnection : close\r\n\r\n",find_path,version,main_url);
  			}
 
- 			
+
+ 			printf("\n---->Request : \n%s\n",request_remote);
+
+ 			if((send(remote_socket,request_remote,strlen(request_remote),0))<0)
+ 			{
+ 				perror("Error on sending to remote server\n");
+ 				return SKIP_TO_END;
+ 			}
  		}
- 	}
+ 		else
+ 		{
+ 			 printf("\n---->Request : \n%s\n",request);
+ 			if((send(remote_socket,request,strlen(request),0))<0)
+ 			{
+ 				perror("Error on sending to remote server\n");
+ 				return SKIP_TO_END;
+ 			}
+ 		}
+
+ 		//receiving response from server
+		printf("\nReceiving file...\n");
+		FILE *recv_data;
+		int characters;
+	
+ 		DIR *dir = opendir(folder_name);
+		if(dir)
+		{
+			#ifdef DEBUG
+			printf("Path already exists\n");
+			#endif
+		}
+		else
+		{
+			char cmd[500];
+
+			// creating new folder for cache storage
+			sprintf(cmd,"mkdir -p %s",folder_name);
+
+			system(cmd);
+			#ifdef DEBUG
+			printf("Created Folder: %s\n",folder_name);
+			#endif
+		}
+
+		recv_data = fopen(filename,"w");
+		if(recv_data!=NULL)
+		{
+			printf("\n---->Received File :\n");
+			do
+			{
+				// receiving data from server
+				characters = 0;
+				memset(response_remote,0,sizeof(response_remote));
+				//setting socket timeout if more than 1 second
+
+				/*struct timeval tv;// for socket timeout
+				tv.tv_sec = 10;
+				tv.tv_usec = 0;
+				setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
+				characters = recv(remote_socket,response_remote,BUFFER,0);
+
+				/*tv.tv_sec = 0;
+				tv.tv_usec = 0;
+				setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
+
+				if(characters < 0)
+				{
+					printf("Error on loading from server - Timeout\n");
+					break;
+				}
+				fwrite(response_remote, 1, characters,recv_data);
+				send(new_socket,response_remote,characters,0);
+				//printf("%s",response_remote);
+
+			}while(characters>0);
+
+			printf("\nEnd of File\n");
+			fclose(recv_data);
+		}
+		else
+		{
+			perror("\nCannot create a file in Cache\n");
+			return ERROR;
+		}
+
+ 			
+	}
  	return SUCCESS;
 }
 
