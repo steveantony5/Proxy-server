@@ -1,0 +1,5 @@
+
+morse.colorado.edu 128.138.184.74 
+www.ritsumei.ac.jp 133.19.170.14 
+www.srinath.com 72.52.4.119 
+netstech.org 144.208.69.121 

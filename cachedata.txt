@@ -1,0 +1,6 @@
+
+http://morse.colorado.edu/ 23 43 26 
+http://morse.colorado.edu/inside/buttons/researchgroup_on.jpg 23 43 27 
+http://morse.colorado.edu/inside/buttons/researchgroup_off.jpg 23 47 32 
+http://morse.colorado.edu/images/pixel.gif 23 43 31 
+http://netstech.org/ 23 54 25 

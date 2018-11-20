@@ -26,6 +26,7 @@
 #include <time.h>
 #include <netdb.h>
 #include <dirent.h>
+#include <sys/wait.h>
 
 /**************************************************************************************
 *                                   Macros
@@ -56,9 +57,9 @@ int proxy_server_socket, new_socket, remote_socket;
 
 /*For request header*/
 char request[HEADER];
-char method[10];
-char version[10];        
-char url[500];
+char method[100];
+char version[100];        
+char url[800];
 char content_length[10];
 char content_type[10];
 int port_number;
@@ -105,6 +106,7 @@ int main(int argc, char *argv[])
 {
 	//for knowing the status of each called function : error handling
 	status status_returned;
+	int32_t child_id = 0;
 
 	if(argc<3)// passing port number as command line argument
 	{
@@ -136,25 +138,33 @@ int main(int argc, char *argv[])
 		if(new_socket<0)
 		{
 			perror("Error on accepting client");
+			exit(1);
 
 		}
 		
 		/*Clearing the request variable*/
 		memset(request,0,HEADER);
-
+		child_id = 0;
 		/*Creating child processes*/
 		/*Returns zero to child process if there is successful child creation*/
-		int32_t child_id = fork();
+		child_id = fork();
 		if(child_id < 0)
 		{
 			perror("error on creating child\n");
+			exit(1);
 		}
 
-		while((!child_id) && ( recv(new_socket,request, HEADER,0) > 0))
+		if (child_id > 0)
+		{
+			close(new_socket);
+			waitpid(0, NULL, WNOHANG);	//Wait for state change of the child process
+		}
+
+		while((child_id == 0) && ( recv(new_socket,request, HEADER,0) > 0))
 		{
 
 			// blocking /favicon.ico request
-			if(strstr(request, "favicon.ico"))
+			if(strstr(request, "favicon"))
 			{
 				printf("\nReceived favicon request : Blocked by Proxy\n");
 				goto end;
@@ -167,7 +177,7 @@ int main(int argc, char *argv[])
 
 			status_returned = parse_request();
 			{
-				if(status_returned == IGNORE)
+				if(status_returned == ERROR)
 				{
 					goto end;
 				}
@@ -366,22 +376,37 @@ status parse_request()
 	else
 	{
 		last_occ++;
-		strcpy(port_number_str,last_occ);
-		port_number = atoi(port_number_str);
-		last_occ = strrchr(url,':');
-		*last_occ = '\0' ;
-		printf("-->Port %s is used\n",port_number_str);
+		if(((*last_occ) >= 48) && ((*last_occ) <=57))
+		{
+			strcpy(port_number_str,last_occ);
+			port_number = atoi(port_number_str);
+			last_occ = strrchr(url,':');
+			*last_occ = '\0' ;
+			printf("-->Port %s is used\n",port_number_str);
+		}
+		else
+		{
+			port_number = 80; //default port number
+			printf("-->Default port 80 is used\n");
+		}
 	}
 
 	//Getting the domain name from url
 	char *search = NULL;
 	search = strstr(url,"://");
-	search = search +3;
-	strcpy(main_url,search);
-	search = strchr(main_url,'/');
-	if(search!=NULL)
+	if(search != NULL)
 	{
-		*search = '\0';
+		search = search +3;
+		strcpy(main_url,search);
+		search = strchr(main_url,'/');
+		if(search!=NULL)
+		{
+			*search = '\0';
+		}
+	}
+	else
+	{
+		return ERROR;
 	}
 	
 
@@ -493,7 +518,6 @@ status is_cache_data_avail()
 					}
 					FILE *cache_fp2;
 					cache_fp2 = fopen("cachedata.txt","w");
-					printf("Cache stored %s\n",cache);
 					if(cache_fp2!=NULL)
 					{
 						fwrite(cache,1,file_size,cache_fp2);
@@ -610,16 +634,18 @@ status get_ip_and_blockstatus()
 	block_fp = NULL;
 
 	/*Checks if the request has domain name or IP*/
-	int j=0,count = 0;
+	int j=0,count = 1;
 	for(j=0; j < strlen(main_url); j++)
 	{
 		if(main_url[j] == '.')
 			count++;
+
 		if(count == 4)
 		{
 			#ifdef DEBUG
 			printf("Entered IP address instead of domain name\n");
 			#endif
+			strcpy(ip,main_url);
 			goto end;
 		}
 			
@@ -771,7 +797,7 @@ status  make_DNS_request()
 	if(dns==NULL)
 	{
 		printf("Error on opening IP_Cache.txt\n");
-		return IP_NOT_FOUND;
+		return ERROR;
 	}
 	else
 	{
@@ -1014,6 +1040,8 @@ status socket_creation_remote()
 
  		//Getting the file_path from url
  		char *find_domain, *find_path;
+ 		find_path = NULL;
+ 		find_domain = NULL;
 
  		find_domain = strstr(url,main_url);
  		if(find_domain!=NULL)
@@ -1073,15 +1101,16 @@ status socket_creation_remote()
  		printf("Foldername : %s\n",folder_name);
  		#endif
 
+ 		memset(request_remote,0,sizeof(request_remote));
+ 		
  		if(find_path == NULL)
  		{
- 			 sprintf(request_remote,"GET / %s\nHost: %s\nConnection : close\n\n",version,main_url);
+ 			 sprintf(request_remote,"GET / %s\r\nHost: %s\r\nConnection : close\r\n\r\n",version,main_url);
  		}
  		else
  		{
- 			//sprintf(request_remote,"GET /~remzi/OSTEP/ HTTP/1.1\r\nHost: pages.cs.wisc.edu\r\nConnection: close\r\n\r\n");
 
- 			sprintf(request_remote,"GET %s %s\nHost: %s\nConnection : close\n\n",find_path,version,main_url);
+ 			sprintf(request_remote,"GET %s %s\r\nHost: %s\r\nConnection : close\r\n\r\n",find_path,version,main_url);
  		}
 
 
@@ -1126,7 +1155,23 @@ status socket_creation_remote()
  				{
  					characters = 0;
  					memset(response_remote,0,sizeof(response_remote));
- 					characters = recv(remote_socket,response_remote,HEADER,0);
+					//setting socket timeout if more than 1 second
+
+					/*struct timeval tv;// for socket timeout
+					tv.tv_sec = 10;
+					tv.tv_usec = 0;
+					setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
+					characters = recv(remote_socket,response_remote,HEADER,0);
+
+					/*tv.tv_sec = 0;
+					tv.tv_usec = 0;
+					setsockopt(remote_socket, SOL_SOCKET, SO_RCVTIMEO, (char*)&tv, sizeof(struct timeval));*/
+
+ 					if(characters < 0)
+ 					{
+ 						printf("Error on loading from server - Timeout\n");
+ 						break;
+ 					}
  					fwrite(response_remote, 1, characters,recv_data);
  					send(new_socket,response_remote,characters,0);
  					//printf("%s",response_remote);
