@@ -42,6 +42,8 @@
 /*For debug purpose*/
 #define DEBUG
 
+
+#define TIME_OUT_SOCKET (10)
 /**************************************************************************************
 *                                   Global declaration
 **************************************************************************************/
@@ -171,7 +173,6 @@ int main(int argc, char *argv[])
 		while((child_id == 0) && ( recv(new_socket,request, HEADER,0) > 0))
 		{
 
-	
 			// blocking /favicon.ico request
 			if(strstr(request, "favicon"))
 			{
@@ -264,11 +265,9 @@ int main(int argc, char *argv[])
 		end:
 			printf("\n--------------------------------------------------------\n");
 
+			close(new_socket);
 		}
-		close(new_socket);
-
-
-	}
+	}	
 	close(proxy_server_socket);
 	exit(EXIT_SUCCESS);
 }
@@ -376,6 +375,8 @@ status parse_request()
 	/*separating the parameters from request string*/
 	sscanf(request,"%s%s%s",method, url, version);
 
+
+	
 
 	// Extracting the name of the requested url and port number for remote server
 	char port_number_str[5];

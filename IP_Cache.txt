@@ -1,4 +1,5 @@
 
 morse.colorado.edu 128.138.184.74 
 www.websites.web.com 64.69.213.61 
-showcase8.myregisteredsite.com 209.237.150.20 
+www.ritsumei.ac.jp 133.19.170.14 
+www.psy.ritsumei.ac.jp 133.19.170.1 
