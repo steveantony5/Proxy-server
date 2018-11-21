@@ -1,0 +1,65 @@
+---------------------------------------------------------------------------------------
+https://github.com/steveantony5/Proxy-server
+---------------------------------------------------------------------------------------
+To execute the proxy server
+>> make
+>> ./proxy <port number> <Cache Timeout>
+
+
+eg: ./proxy 8000 80
+
+To delete the executable
+>> make clean
+
+-----------------------------------------------------------------------------------------
+HTTP methods supported: GET Also the proxy server can  accept multiple clients
+			  Supports HTTP version 1.0 and 1.1
+----------------------------------------------------------------------------------------
+
+GET method
+----------
+
+1) Accepts GET requests from terminal or any commercial web browser
+2) Supports only http requests and not https
+
+Caching
+-------
+1) Each page when it is requested for the first time, it is stored in the Cache folder
+2) When the page is requested for a second time, it is served from the cache folder if the time stamp of 
+   the cache file is less than the timeout value given in the command line
+3) Cachedata.txt file is used to maintain the files available in cache along with the time stamp
+
+
+IP Caching
+----------
+1) When a new page is requested, it gets the ip address of the domain name through DNS and stores the ip in IPCache.txt
+2) For other requested from the same domain, DNS request is bypassed and ip is resolved from IPCache.txt
+
+Block list
+-----------
+ Blocked.txt maintains a list of IPs and domain names which has to be blocked
+
+Link prefetch
+-------------
+1) Link prefetch is done for Extra credits
+2) When any page is requested, it also request for other possible pages and stores them in the cache
+3) When any of the prefetched page is invoked, it serves from cache provided the cache page is valid
+
+------------------------------------------------------------------------------------------
+Error Handling
+--------------
+HTTP version:
+	Supports HTTP version 1.0 and 1.1 
+	For other HTTP version, gives 400 Bad request error
+
+Methods:
+	Supports HTTP methods GET
+	For othe HTTP methods, gives 400 Bad request error
+
+DNS - not resolved:
+	For doamin names which cannot be resolved, 404 Host name not resolved error
+
+Blocked file
+	When a blocked url is requested, 403 Forbidden request
+
+-----------------------------------------------------------------------------------------
