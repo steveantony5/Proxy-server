@@ -46,6 +46,7 @@ Link prefetch
 1) Link prefetch is done for Extra credits
 2) When any page is requested, it also request for other possible pages and stores them in the cache
 3) When any of the prefetched page is invoked, it serves from cache provided the cache page is valid
+4) Link prefetch will work only when request in given from browser as it sends multiple request from the links for prefetching.
 
 ------------------------------------------------------------------------------------------
 Error Handling
