@@ -3,3 +3,7 @@ morse.colorado.edu 128.138.184.74
 www.websites.web.com 64.69.213.61 
 www.ritsumei.ac.jp 133.19.170.14 
 www.psy.ritsumei.ac.jp 133.19.170.1 
+www.srinath.com 72.52.4.119 
+www.whatsmyip.org 204.11.35.98 
+pagead2.googlesyndication.com 172.217.1.66 
+platform.twitter.com 72.21.91.66 

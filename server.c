@@ -1240,6 +1240,7 @@ status socket_creation_remote()
 
  			
 	}
+	close(remote_socket);
  	return SUCCESS;
 }
 

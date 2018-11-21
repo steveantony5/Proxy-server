@@ -21,7 +21,9 @@ GET method
 
 1) Accepts GET requests from terminal or any commercial web browser
 2) Supports only http requests and not https
-
+3) If no port number is specified in the url, it takes the default port 80 to connect to the remote server.
+   If any url is specified in the ur, it uses it to connect to the remote server provided the remote server supoorts any port other than 80
+   
 Caching
 -------
 1) Each page when it is requested for the first time, it is stored in the Cache folder
