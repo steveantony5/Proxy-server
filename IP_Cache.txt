@@ -7,3 +7,4 @@ www.srinath.com 72.52.4.119
 www.whatsmyip.org 204.11.35.98 
 pagead2.googlesyndication.com 172.217.1.66 
 platform.twitter.com 72.21.91.66 
+www.philosophypages.com 172.81.117.249 
